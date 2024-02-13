@@ -1,0 +1,1 @@
+# Nextcloud Local Whisper Speech To Text

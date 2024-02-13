@@ -1,0 +1,3 @@
+nc_py_api[app]>=0.8.0
+torch
+transformers
