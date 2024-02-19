@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
-LANGS = de-en  de-es  de-fr  de-zh  en-de  en-es  en-fr  en-zh  es-de  es-en  es-fr  fr-de  fr-en  fr-es  zh-de  zh-en
-
+LANGPAIRS = de-en  de-es  de-fr  de-zh  en-de  en-es  en-fr  en-zh  es-de  es-en  es-fr  fr-de  fr-en  fr-es  zh-de  zh-en
+LANGS=de en es fr zh it sv ar fi nl ja
 
 .PHONY: help
 help:
@@ -20,11 +20,12 @@ help:
 	@echo "  "
 	@echo "  register          perform registration of running Txt2TxtProvider into the 'manual_install' deploy daemon."
 
-download-models:
-	cd models
-	@- $(foreach LANG, $(LANGS), git clone "https://huggingface.co/Helsinki-NLP/opus-mt-$(LANG)"  "$(LANG)"; )
+download-models: $(foreach l1,$(LANGS),$(foreach l2,$(LANGS),models/${l1}-${l2}))
 
-.PHONY: build-push
+models/%:
+	GIT_TERMINAL_PROMPT=0 git clone "https://huggingface.co/Helsinki-NLP/opus-mt-$*" "$@" || echo "$* does not exist"
+
+.PHONY: build-pushq
 build-push:
 	docker login ghcr.io
 	docker buildx build --push --platform linux/amd64,linux/arm64/v8 --tag ghcr.io/nextcloud/translate2:latest .
