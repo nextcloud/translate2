@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 LANGPAIRS = de-en  de-es  de-fr  de-zh  en-de  en-es  en-fr  en-zh  es-de  es-en  es-fr  fr-de  fr-en  fr-es  zh-de  zh-en
-LANGS=de en es fr zh it sv ar fi nl ja
+LANGS=de en es fr zh it sv ar fi nl ja tr
 
 .PHONY: help
 help:
