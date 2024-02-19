@@ -1,1 +1,1 @@
-# Nextcloud Local Whisper Speech To Text
+# Nextcloud Local Machine Translation
