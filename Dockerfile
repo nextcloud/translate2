@@ -19,4 +19,4 @@ RUN \
 WORKDIR /app/lib
 ENTRYPOINT ["python3", "main.py"]
 
-LABEL org.opencontainers.image.source=https://github.com/nextcloud/translate2
+LABEL org.opencontainers.image.source="https://github.com/nextcloud/translate2"
