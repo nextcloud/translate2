@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from time import perf_counter
 import os
 
-from fastapi import Depends, FastAPI, responses
+from fastapi import Depends, FastAPI, responses, Body
 from nc_py_api import AsyncNextcloudApp, NextcloudApp
 from nc_py_api.ex_app import LogLvl, anc_app, run_app, set_handlers
 import torch
@@ -51,28 +51,33 @@ class BackgroundProcessTask(threading.Thread):
                     NextcloudApp().providers.translations.report_result(task["id"], error="Requested model is not available")
                     continue
                 translator = pipeline("translation", model=dir_path+"/../models/"+model_name)
+                print("translating")
+                start = perf_counter()
                 translation = translator(task.get("text"))
-                NextcloudApp().providers.speech_to_text.report_result(
-                    task["id"],
-                    str(translation[0]['translation_text']),
+                print(f"time taken {perf_counter() - start}")
+                print(translation)
+                NextcloudApp().providers.translations.report_result(
+                    task_id=task["id"],
+                    result=str(translation[0]['translation_text']),
                 )
             except Exception as e:  # noqa
                 print(str(e))
                 nc = NextcloudApp()
                 nc.log(LogLvl.ERROR, str(e))
-                nc.providers.speech_to_text.report_result(task["id"], error=str(e))
+                nc.providers.translations.report_result(task["id"], error=str(e))
 
 
 
 @APP.post("/translate")
 async def tiny_llama(
     _nc: typing.Annotated[AsyncNextcloudApp, Depends(anc_app)],
-    from_language: str,
-    to_language: str,
-    text: str,
-    task_id: int,
+    from_language: typing.Annotated[str, Body()],
+    to_language: typing.Annotated[str, Body()],
+    text: typing.Annotated[str, Body()],
+    task_id: typing.Annotated[int, Body()],
 ):
     try:
+        print({"text": text, "from_language": from_language, "to_language": to_language, "id": task_id})
         TASK_LIST.put({"text": text, "from_language": from_language, "to_language": to_language, "id": task_id}, block=False)
     except queue.Full:
         return responses.JSONResponse(content={"error": "task queue is full"}, status_code=429)
