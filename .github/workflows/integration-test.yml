@@ -86,22 +86,6 @@ jobs:
           repository: cloud-py-api/app_api
           path: apps/app_api
 
-      - name: Read package.json node and npm engines version
-        uses: skjnldsv/read-package-engines-version-actions@v3
-        id: versions
-        with:
-          path: apps/${{ env.APP_NAME }}
-          fallbackNode: '^20'
-          fallbackNpm: '^10'
-
-      - name: Set up node ${{ steps.versions.outputs.nodeVersion }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ steps.versions.outputs.nodeVersion }}
-
-      - name: Set up npm ${{ steps.versions.outputs.npmVersion }}
-        run: npm i -g npm@"${{ steps.versions.outputs.npmVersion }}"
-
       - name: Set up Nextcloud
         if: ${{ matrix.databases != 'pgsql'}}
         run: |
