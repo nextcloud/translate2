@@ -129,7 +129,7 @@ jobs:
       - name: Install and init backend
         env:
           PYTHONUNBUFFERED: 1
-          APP_HOST: 0.0.0.0;
+          APP_HOST: 0.0.0.0
           APP_ID: translate2
           APP_PORT: 9081
           APP_SECRET: 12345
@@ -138,6 +138,7 @@ jobs:
         working-directory:  ${{ env.APP_NAME }}
         run: |
           pip install -r requirements.txt
+          make download-models
           python3 lib/main.py &
 
       - name: Register backend
