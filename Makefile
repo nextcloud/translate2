@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 LANGPAIRS = de-en  de-es  de-fr  de-zh  en-de  en-es  en-fr  en-zh  es-de  es-en  es-fr  fr-de  fr-en  fr-es  zh-de  zh-en
 LANGS=de en es fr zh it sv ar fi nl ja tr
+FEW_LANGS=de en
 
 .PHONY: help
 help:
@@ -21,6 +22,8 @@ help:
 	@echo "  register          perform registration of running Txt2TxtProvider into the 'manual_install' deploy daemon."
 
 download-models: $(foreach l1,$(LANGS),$(foreach l2,$(LANGS),models/${l1}-${l2}))
+
+download-a-few-models: $(foreach l1,$(FEW_LANGS),$(foreach l2,$(FEW_LANGS),models/${l1}-${l2}))
 
 models/%:
 	GIT_TERMINAL_PROMPT=0 git clone "https://huggingface.co/Helsinki-NLP/opus-mt-$*" "$@" || echo "$* does not exist"
