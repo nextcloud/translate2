@@ -1,59 +1,71 @@
+"""Translation service"""
+
+import json
 import os
+from pathlib import Path
 from time import perf_counter
-from transformers import pipeline
+
+from llama_cpp.llama import Llama
+
+
+class LoaderException(Exception):
+    pass
+
+
+class LlamaContext:
+    def __init__(self, model_name: str, gpu_accelerated: bool):
+        try:
+            with open("../config.json") as f:
+                config = json.loads(f.read())["llama"][model_name]
+                config["model_path"] = Path("../models/", config["model_name"])
+                del config["model_name"]
+
+            self.llama = Llama(n_gpu_layers=-1 if gpu_accelerated else 0, **config)
+        except Exception as e:
+            raise LoaderException(
+                f"Error reading config, ensure config.json is present at {Path('..', os.getcwd())}"
+            ) from e
+
+    def __enter__(self):
+        self.start = perf_counter()
+        return self.llama
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        print(f"time taken {perf_counter() - self.start}")
+        del self.llama
+
 
 class Service:
-    dir_path = os.path.dirname(os.path.realpath(__file__))
+    gpu_accelerated = os.getenv("COMPUTE_DEVICE", "cuda") != "cpu"
+    temperature = 0.1
+
+    def __init__(self):
+        try:
+            with open("../languages.json") as f:
+                self.languages = json.loads(f.read())
+        except Exception as e:
+            raise Exception(
+                f"Error reading languages list, ensure languages.json is present at {Path('..', os.getcwd())}"
+            ) from e
 
     def get_lang_names(self):
-        return {
-            'de': 'German',
-            'en': 'English',
-            'es': 'Spanish',
-            'fr': 'French',
-            'zh': 'Chinese',
-            'it': 'Italian',
-            'sv': 'Swedish',
-            'ar': 'Arabic',
-            'fi': 'Finnish',
-            'nl': 'Dutch',
-            'ja': 'Japanese',
-            'tr': 'Turkish',
-        }
+        return self.languages
 
     def get_models(self):
         models = []
+        languages = self.get_lang_names()
 
-        for file in os.scandir(self.dir_path + "/../models/"):
-            if os.path.isdir(file.path):
-                models.append(file.name)
+        for file in os.scandir("../models/"):
+            if os.path.isfile(file.path) and file.name.endswith(".gguf"):
+                models.append((file.name, languages))
 
         return models
 
-    def get_langs(self):
-        lang_names = self.get_lang_names()
-        from_languages = {}
-        to_languages = {}
-        for model_name in self.get_models():
-            [from_language, to_language] = model_name.split('-', 2)
-            from_languages[from_language] = lang_names[from_language]
-            to_languages[to_language] = lang_names[to_language]
-        return from_languages, to_languages
+    def translate(self, model_name: str, to_language: str, text: str):
+        print("translating text to", to_language)
 
-    def translate(self, from_language, to_language, text):
-        model_name = from_language + "-" + to_language
-        print(f"model: {model_name}")
+        with LlamaContext(model_name, self.gpu_accelerated) as llama:
+            translation = llama(f"<2{to_language}> {text}", temperature=self.temperature)
 
-        if not model_name in self.get_models():
-            if 'en-'+to_language in self.get_models() and from_language+'-en' in self.get_models():
-                return self.translate('en', to_language, self.translate(from_language, 'en', text))
-
-            raise Exception('Requested model is not available')
-
-        translator = pipeline("translation", model=self.dir_path + "/../models/" + model_name)
-        print("translating")
-        start = perf_counter()
-        translation = translator(text)
-        print(f"time taken {perf_counter() - start}")
         print(translation)
-        return translation[0]['translation_text']
+        return translation.choices[0].text
