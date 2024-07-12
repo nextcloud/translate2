@@ -45,7 +45,7 @@ class BackgroundProcessTask(threading.Thread):
         while True:
             task = TASK_LIST.get(block=True)
             try:
-                translation = service.translate(task["model"], task["to_language"], task["text"])
+                translation = service.translate(task["to_language"], task["text"])
                 NextcloudApp().providers.translations.report_result(
                     task_id=task["id"],
                     result=str(translation).strip(),
@@ -60,15 +60,16 @@ class BackgroundProcessTask(threading.Thread):
 
 @APP.post("/translate")
 async def tiny_llama(
-    name: typing.Annotated[str, Body()],
+    # name: typing.Annotated[str, Body()],
     from_language: typing.Annotated[str, Body()],
     to_language: typing.Annotated[str, Body()],
     text: typing.Annotated[str, Body()],
     task_id: typing.Annotated[int, Body()],
 ):
     try:
+        # todo
         task = {
-            "model": name[11:],
+            # "model": name[11:],
             "text": text,
             "from_language": from_language,
             "to_language": to_language,
@@ -84,19 +85,20 @@ async def tiny_llama(
 async def enabled_handler(enabled: bool, nc: AsyncNextcloudApp) -> str:
     print(f"enabled={enabled}")
     if enabled is True:
-        models = service.get_models()
+        # models = service.get_models()
 
-        for (model_name, languages) in models:
-            print(
-                f"Supported languages in model {model_name}: ({len(languages)}): {list(languages.values())[:10]}, ..."
-            )
-            await nc.providers.translations.register(
-                f"translate2:{model_name}",
-                "Local Machine Translation",
-                "/translate",
-                languages,
-                languages,
-            )
+        # for (model_name, languages) in models:
+        languages = service.get_lang_names()
+        print(
+            f"Supported languages: ({len(languages)}): {list(languages.values())[:10]}, ..."
+        )
+        await nc.providers.translations.register(
+            "translate2",
+            "Local Machine Translation",
+            "/translate",
+            languages,
+            languages,
+        )
     else:
         await nc.providers.speech_to_text.unregister("translate2")
     return ""
