@@ -1,19 +1,18 @@
 """Translation service"""
 
 import json
+import logging
 import os
 import re
 from contextlib import contextmanager
 from time import perf_counter
 
-from llama_cpp.llama import Llama
+import ctranslate2
+from sentencepiece import SentencePieceProcessor
 
 GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "cuda") != "cpu"
-TEMPERATURE = 0.1
 
-
-class LoaderException(Exception):
-    pass
+logger = logging.getLogger(__name__)
 
 
 def clean_text(text: str) -> str:
@@ -21,31 +20,41 @@ def clean_text(text: str) -> str:
 
 
 @contextmanager
-def llama_context():
+def translate_context(config: dict):
     try:
-        with open(os.path.join(os.getcwd(), "../config.json")) as f:
-            # todo
-            config = json.loads(f.read())["llama"]
-            config["model_path"] = os.path.join(os.getcwd(), "../models/", config["model_file"])
-            del config["model_file"]
+        tokenizer = SentencePieceProcessor()
+        tokenizer.Load(os.path.join(config["loader"]["model_path"], config["tokenizer_file"]))
 
-        llama = Llama(n_gpu_layers=-1 if GPU_ACCELERATED else 0, **config)
+        translator = ctranslate2.Translator(
+            **{
+                "device": "cuda" if GPU_ACCELERATED else "cpu",
+                **config["loader"],
+            }
+        )
+    except KeyError as e:
+        raise Exception("Incorrect config file") from e
     except Exception as e:
-        raise LoaderException(
-            "Error reading config, ensure config.json is present in the project root"
-        ) from e
+        raise Exception("Error loading the translation model") from e
 
     start = perf_counter()
-    yield llama
+    yield (tokenizer, translator)
     elapsed = perf_counter() - start
-    print(f"time taken: {elapsed:.2f} s")
-    del llama
+
+    logger.info(f"time taken: {elapsed:.2f}s")
+    del tokenizer
+    # todo: offload to cpu?
+    del translator
 
 
 class Service:
-    def __init__(self):
+    def __init__(self, config: dict):
+        global logger
         try:
-            with open("../languages.json") as f:
+            self.config = config
+            ctranslate2.set_log_level(config["log_level"])
+            logger.setLevel(config["log_level"])
+
+            with open("languages.json") as f:
                 self.languages = json.loads(f.read())
         except Exception as e:
             raise Exception(
@@ -55,21 +64,22 @@ class Service:
     def get_lang_names(self):
         return self.languages
 
-    # def get_models(self):
-    #     models = []
-    #     languages = self.get_lang_names()
+    def translate(self, to_language: str, text: str) -> str:
+        logger.debug(f"translating text to: {to_language}")
 
-    #     for file in os.scandir("../models/"):
-    #         if os.path.isfile(file.path) and file.name.endswith(".gguf"):
-    #             models.append((file.name, languages))
+        with translate_context(self.config) as (tokenizer, translator):
+            input_tokens = tokenizer.Encode(f"<2{to_language}> {clean_text(text)}", out_type=str)
+            results = translator.translate_batch(
+                [input_tokens],
+                batch_type="tokens",
+                **self.config["inference"],
+            )
 
-    #     return models
+            if len(results) == 0 or len(results[0].hypotheses) == 0:
+                raise Exception("Empty result returned from translator")
 
-    def translate(self, to_language: str, text: str):
-        print("translating text to", to_language)
+            # todo: handle multiple hypotheses
+            translation = tokenizer.Decode(results[0].hypotheses[0])
 
-        with llama_context() as llama:
-            translation = llama(f"<2{to_language}> {clean_text(text)}", temperature=TEMPERATURE)
-
-        print(translation)
-        return translation.choices[0].text
+        logger.info(f"Translated string: {translation}")
+        return translation
