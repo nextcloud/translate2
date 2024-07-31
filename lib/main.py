@@ -1,7 +1,7 @@
 """The main module of the translate2 app"""
 
-import json
 import logging
+import os
 import queue
 import threading
 import typing
@@ -13,24 +13,44 @@ from fastapi import Body, FastAPI, Request, responses
 from nc_py_api import AsyncNextcloudApp, NextcloudApp
 from nc_py_api.ex_app import LogLvl, run_app, set_handlers
 from Service import Service
+from util import load_config_file, save_config_file
 
 load_dotenv()
 
-with open("config.json") as f:
-    config = json.loads(f.read())
+config = load_config_file()
 
+# logging config
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(config["log_level"])
 
-service = Service(config)
+
+class ModelConfig(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        if key == "path":
+            config["loader"]["hf_model_path"] = value
+            service.load_config(config)
+            save_config_file(config)
+
+        super().__setitem__(key, value)
+
+
+# download models if "model_name" key is present in the config
+models_to_fetch = None
+cache_dir = os.getenv("APP_PERSISTENT_STORAGE", "models/")
+if "model_name" in config["loader"]:
+    models_to_fetch = { config["loader"]["model_name"]: ModelConfig({ "cache_dir": cache_dir }) }
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     set_handlers(
-        APP,
-        enabled_handler,
+        fast_api_app=APP,
+        enabled_handler=enabled_handler,
+        models_to_fetch=models_to_fetch,
     )
     t = BackgroundProcessTask()
     t.start()
@@ -39,6 +59,7 @@ async def lifespan(_: FastAPI):
 
 APP = FastAPI(lifespan=lifespan)
 TASK_LIST: queue.Queue = queue.Queue(maxsize=100)
+service = Service(config)
 
 
 @APP.exception_handler(Exception)

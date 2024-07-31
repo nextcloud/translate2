@@ -1,4 +1,5 @@
 fastapi
 ctranslate2
-nc_py_api[app]>=0.8.0
+huggingface_hub
+nc_py_api[app]>=0.15.0
 sentencepiece

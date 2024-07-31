@@ -3,20 +3,17 @@
 import json
 import logging
 import os
-import re
 from contextlib import contextmanager
+from copy import deepcopy
 from time import perf_counter
 
 import ctranslate2
 from sentencepiece import SentencePieceProcessor
+from util import clean_text
 
 GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "cuda") != "cpu"
 
 logger = logging.getLogger(__name__)
-
-
-def clean_text(text: str) -> str:
-    return re.sub(r"(\r?\n)+", " ", text).strip()
 
 
 @contextmanager
@@ -50,7 +47,7 @@ class Service:
     def __init__(self, config: dict):
         global logger
         try:
-            self.config = config
+            self.load_config(config)
             ctranslate2.set_log_level(config["log_level"])
             logger.setLevel(config["log_level"])
 
@@ -63,6 +60,15 @@ class Service:
 
     def get_lang_names(self):
         return self.languages
+
+    def load_config(self, config: dict):
+        config_copy = deepcopy(config)
+        config_copy["loader"].pop("model_name", None)
+
+        if "hf_model_path" in config_copy["loader"]:
+            config_copy["loader"]["model_path"] = config_copy["loader"].pop("hf_model_path")
+
+        self.config = config_copy
 
     def translate(self, to_language: str, text: str) -> str:
         logger.debug(f"translating text to: {to_language}")
