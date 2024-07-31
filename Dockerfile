@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -38,10 +38,9 @@ ADD im[g] /app/img
 ADD j[s] /app/js
 ADD l10[n] /app/l10n
 ADD li[b] /app/lib
-ADD model[s] /app/models
 ADD config.json /app/config.json
 
 WORKDIR /app/lib
-ENTRYPOINT ["python3", "-u", "main.py"]
+ENTRYPOINT ["python3", "lib/main.py"]
 
 LABEL org.opencontainers.image.source="https://github.com/nextcloud/translate2"
