@@ -71,7 +71,7 @@ class Service:
         self.config = config_copy
 
     def translate(self, to_language: str, text: str) -> str:
-        logger.debug(f"translating text to: {to_language}")
+        logger.debug(f"translating text to: {self.languages[to_language]}")
 
         with translate_context(self.config) as (tokenizer, translator):
             input_tokens = tokenizer.Encode(f"<2{to_language}> {clean_text(text)}", out_type=str)

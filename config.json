@@ -4,7 +4,7 @@
     "__comment::loader": "CTranslate2 loader options, see https://opennmt.net/CTranslate2/python/ctranslate2.Translator.html#ctranslate2.Translator.__init__. Use 'model_path' key for local paths or 'model_name' key for models hosted on Hugging Face. Both can't be used at the same time.",
     "__comment::inference": "CTranslate2 inference options, see the kwargs in https://opennmt.net/CTranslate2/python/ctranslate2.Translator.html#ctranslate2.Translator.translate_batch",
     "__comment::changes_to_the_config": "the program needs to be restarted if you change this file since it is stored in memory on startup",
-    "log_level": 20,
+    "log_level": 10,
     "tokenizer_file": "spiece.model",
     "loader": {
         "model_name": "Nextcloud-AI/madlad400-3b-mt-ct2-int8_float32",
