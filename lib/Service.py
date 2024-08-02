@@ -15,6 +15,9 @@ GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "cuda") != "cpu"
 
 logger = logging.getLogger(__name__)
 
+if os.getenv("CI") is not None:
+    ctranslate2.set_random_seed(420)
+
 
 @contextmanager
 def translate_context(config: dict):
@@ -33,14 +36,17 @@ def translate_context(config: dict):
     except Exception as e:
         raise Exception("Error loading the translation model") from e
 
-    start = perf_counter()
-    yield (tokenizer, translator)
-    elapsed = perf_counter() - start
-
-    logger.info(f"time taken: {elapsed:.2f}s")
-    del tokenizer
-    # todo: offload to cpu?
-    del translator
+    try:
+        start = perf_counter()
+        yield (tokenizer, translator)
+        elapsed = perf_counter() - start
+        logger.info(f"time taken: {elapsed:.2f}s")
+    except Exception as e:
+        raise Exception("Error translating the input text") from e
+    finally:
+        del tokenizer
+        # todo: offload to cpu?
+        del translator
 
 
 class Service:
