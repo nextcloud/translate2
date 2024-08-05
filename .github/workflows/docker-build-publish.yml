@@ -47,7 +47,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/kyteinsky/${{ env.APP_ID }}:latest
-            ghcr.io/kyteinsky/${{ env.APP_ID }}:${{ fromJson(steps.appinfo.outputs.result).version }}
+            ghcr.io/nextcloud/${{ env.APP_ID }}:latest
+            ghcr.io/nextcloud/${{ env.APP_ID }}:${{ fromJson(steps.appinfo.outputs.result).version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
