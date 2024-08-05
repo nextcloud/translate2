@@ -1,59 +1,97 @@
+"""Translation service"""
+
+import json
+import logging
 import os
+from contextlib import contextmanager
+from copy import deepcopy
 from time import perf_counter
-from transformers import pipeline
+
+import ctranslate2
+from sentencepiece import SentencePieceProcessor
+from util import clean_text
+
+GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "cuda") != "cpu"
+
+logger = logging.getLogger(__name__)
+
+if os.getenv("CI") is not None:
+    ctranslate2.set_random_seed(420)
+
+
+@contextmanager
+def translate_context(config: dict):
+    try:
+        tokenizer = SentencePieceProcessor()
+        tokenizer.Load(os.path.join(config["loader"]["model_path"], config["tokenizer_file"]))
+
+        translator = ctranslate2.Translator(
+            **{
+                "device": "cuda" if GPU_ACCELERATED else "cpu",
+                **config["loader"],
+            }
+        )
+    except KeyError as e:
+        raise Exception("Incorrect config file") from e
+    except Exception as e:
+        raise Exception("Error loading the translation model") from e
+
+    try:
+        start = perf_counter()
+        yield (tokenizer, translator)
+        elapsed = perf_counter() - start
+        logger.info(f"time taken: {elapsed:.2f}s")
+    except Exception as e:
+        raise Exception("Error translating the input text") from e
+    finally:
+        del tokenizer
+        # todo: offload to cpu?
+        del translator
+
 
 class Service:
-    dir_path = os.path.dirname(os.path.realpath(__file__))
+    def __init__(self, config: dict):
+        global logger
+        try:
+            self.load_config(config)
+            ctranslate2.set_log_level(config["log_level"])
+            logger.setLevel(config["log_level"])
+
+            with open("languages.json") as f:
+                self.languages = json.loads(f.read())
+        except Exception as e:
+            raise Exception(
+                "Error reading languages list, ensure languages.json is present in the project root"
+            ) from e
 
     def get_lang_names(self):
-        return {
-            'de': 'German',
-            'en': 'English',
-            'es': 'Spanish',
-            'fr': 'French',
-            'zh': 'Chinese',
-            'it': 'Italian',
-            'sv': 'Swedish',
-            'ar': 'Arabic',
-            'fi': 'Finnish',
-            'nl': 'Dutch',
-            'ja': 'Japanese',
-            'tr': 'Turkish',
-        }
+        return self.languages
 
-    def get_models(self):
-        models = []
+    def load_config(self, config: dict):
+        config_copy = deepcopy(config)
+        config_copy["loader"].pop("model_name", None)
 
-        for file in os.scandir(self.dir_path + "/../models/"):
-            if os.path.isdir(file.path):
-                models.append(file.name)
+        if "hf_model_path" in config_copy["loader"]:
+            config_copy["loader"]["model_path"] = config_copy["loader"].pop("hf_model_path")
 
-        return models
+        self.config = config_copy
 
-    def get_langs(self):
-        lang_names = self.get_lang_names()
-        from_languages = {}
-        to_languages = {}
-        for model_name in self.get_models():
-            [from_language, to_language] = model_name.split('-', 2)
-            from_languages[from_language] = lang_names[from_language]
-            to_languages[to_language] = lang_names[to_language]
-        return from_languages, to_languages
+    def translate(self, to_language: str, text: str) -> str:
+        logger.debug(f"translating text to: {to_language}")
 
-    def translate(self, from_language, to_language, text):
-        model_name = from_language + "-" + to_language
-        print(f"model: {model_name}")
+        with translate_context(self.config) as (tokenizer, translator):
+            input_tokens = tokenizer.Encode(f"<2{to_language}> {clean_text(text)}", out_type=str)
+            results = translator.translate_batch(
+                [input_tokens],
+                batch_type="tokens",
+                **self.config["inference"],
+            )
 
-        if not model_name in self.get_models():
-            if 'en-'+to_language in self.get_models() and from_language+'-en' in self.get_models():
-                return self.translate('en', to_language, self.translate(from_language, 'en', text))
+            if len(results) == 0 or len(results[0].hypotheses) == 0:
+                raise Exception("Empty result returned from translator")
 
-            raise Exception('Requested model is not available')
+            # todo: handle multiple hypotheses
+            translation = tokenizer.Decode(results[0].hypotheses[0])
 
-        translator = pipeline("translation", model=self.dir_path + "/../models/" + model_name)
-        print("translating")
-        start = perf_counter()
-        translation = translator(text)
-        print(f"time taken {perf_counter() - start}")
-        print(translation)
-        return translation[0]['translation_text']
+        logger.info(f"Translated string: {translation}")
+        return translation
