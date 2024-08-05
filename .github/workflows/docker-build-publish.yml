@@ -6,6 +6,7 @@
 name: Build and publish app release
 
 on:
+  pull_request:
   push:
     tags:
       - '**'
