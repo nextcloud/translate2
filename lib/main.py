@@ -49,8 +49,8 @@ if "model_name" in config["loader"]:
 async def lifespan(_: FastAPI):
     set_handlers(
         fast_api_app=APP,
-        enabled_handler=enabled_handler,
-        models_to_fetch=models_to_fetch,
+        enabled_handler=enabled_handler,  # type: ignore
+        models_to_fetch=models_to_fetch,  # type: ignore
     )
     t = BackgroundProcessTask()
     t.start()

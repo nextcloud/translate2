@@ -21,4 +21,3 @@ def load_config_file(path: str = "config.json") -> dict:
 def save_config_file(config: dict, path: str = "config.json") -> None:
     with open(path, "w") as f:
         f.write(json.dumps(config, indent=4))
-
