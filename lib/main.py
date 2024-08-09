@@ -2,17 +2,17 @@
 
 import logging
 import os
-import queue
 import threading
-import typing
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
+from time import sleep
 
 import uvicorn.logging
 from dotenv import load_dotenv
-from fastapi import Body, FastAPI, Request, responses
+from fastapi import FastAPI, Request, responses
 from nc_py_api import AsyncNextcloudApp, NextcloudApp
 from nc_py_api.ex_app import LogLvl, run_app, set_handlers
-from Service import Service
+from nc_py_api.ex_app.providers.task_processing import ShapeEnumValue, TaskProcessingProvider
+from Service import Service, TranslateRequest
 from util import load_config_file, save_config_file
 
 load_dotenv()
@@ -45,21 +45,37 @@ if "model_name" in config["loader"]:
     models_to_fetch = { config["loader"]["model_name"]: ModelConfig({ "cache_dir": cache_dir }) }
 
 
+worker = None
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global worker
     set_handlers(
         fast_api_app=APP,
         enabled_handler=enabled_handler,  # type: ignore
         models_to_fetch=models_to_fetch,  # type: ignore
     )
-    t = BackgroundProcessTask()
-    t.start()
+    worker = BackgroundProcessTask()
+    worker.start()
     yield
+    if isinstance(worker, threading.Thread):
+        worker._stop()  # pyright: ignore[reportAttributeAccessIssue]
+        worker = None
 
 
+APP_ID = "translate2"
+TASK_TYPE_ID = "core:text2text:translate"
+IDLE_POLLING_INTERVAL = config["idle_polling_interval"]
+DETECT_LANGUAGE = ShapeEnumValue(name="Detect Language", value="auto")
 APP = FastAPI(lifespan=lifespan)
-TASK_LIST: queue.Queue = queue.Queue(maxsize=100)
 service = Service(config)
+
+
+def report_error(task: dict | None, exc: Exception):
+    with suppress(Exception):
+        nc = NextcloudApp()
+        nc.log(LogLvl.ERROR, str(exc))
+        if task:
+            nc.providers.task_processing.report_result(task["id"], error_message=str(exc))
 
 
 @APP.exception_handler(Exception)
@@ -67,11 +83,7 @@ async def _(request: Request, exc: Exception):
     logger.error("Error processing request", request.url.path, exc)
 
     task: dict | None = getattr(exc, "args", None)
-
-    nc = NextcloudApp()
-    nc.log(LogLvl.ERROR, str(exc))
-    if task:
-        nc.providers.translations.report_result(task["id"], error=str(exc))
+    report_error(task, exc)
 
     return responses.JSONResponse({
         "error": "An error occurred while processing the request, please check the logs for more info"
@@ -80,62 +92,86 @@ async def _(request: Request, exc: Exception):
 
 class BackgroundProcessTask(threading.Thread):
     def run(self, *args, **kwargs):  # pylint: disable=unused-argument
+        nc = NextcloudApp()
         while True:
-            task = TASK_LIST.get(block=True)
+            if not nc.enabled_state:
+                logger.debug("App is disabled")
+                break
+
+            task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
+            if not task:
+                logger.debug("No tasks found")
+                sleep(IDLE_POLLING_INTERVAL)
+                continue
+
+            logger.debug(f"Processing task: {task}")
+
+            input_ = task.get("task", {}).get("input")
+            if input_ is None or not isinstance(input_, dict):
+                logger.error("Invalid task object received, expected task object with input key")
+                continue
+
+            output = None
+            error = None
             try:
-                translation = service.translate(task["to_language"], task["text"])
-                NextcloudApp().providers.translations.report_result(
-                    task_id=task["id"],
-                    result=str(translation).strip(),
-                )
-            except Exception as e:  # noqa
-                e.args = task
-                raise e
+                request = TranslateRequest(**input_)
+                translation = service.translate(request)
+                output = translation
+            except Exception as e:
+                e.args = (task,)
+                report_error(task, e)
+                error = f"Error translating the input text: {e}"
 
-
-@APP.post("/translate")
-async def tiny_llama(
-    from_language: typing.Annotated[str, Body()],
-    to_language: typing.Annotated[str, Body()],
-    text: typing.Annotated[str, Body()],
-    task_id: typing.Annotated[int, Body()],
-):
-    try:
-        task = {
-            "text": text,
-            "from_language": from_language,
-            "to_language": to_language,
-            "id": task_id,
-        }
-        logger.debug(task)
-        TASK_LIST.put(task)
-    except queue.Full:
-        return responses.JSONResponse(content={"error": "task queue is full"}, status_code=429)
-    return responses.Response()
+            nc.providers.task_processing.report_result(
+                task_id=task["task"]["id"],
+                output={"output": output},
+                error_message=error,
+            )
 
 
 async def enabled_handler(enabled: bool, nc: AsyncNextcloudApp) -> str:
+    global worker
     print(f"enabled={enabled}")
-    if enabled is True:
-        languages = service.get_lang_names()
-        logger.info(
-            "Supported languages short list", {
-                "count": len(languages),
-                "languages": list(languages.keys())[:10],
-            }
-        )
-        await nc.providers.translations.register(
-            "translate2",
-            "Local Machine Translation",
-            "/translate",
-            languages,
-            languages,
-        )
-    else:
-        await nc.providers.speech_to_text.unregister("translate2")
+
+    if not enabled:
+        await nc.providers.task_processing.unregister(APP_ID)
+        if isinstance(worker, threading.Thread):
+            worker._stop()  # pyright: ignore[reportAttributeAccessIssue]
+            worker = None
+        return ""
+
+    languages = [
+        ShapeEnumValue(name=lang_name, value=lang_id)
+        for lang_id, lang_name in service.get_languages().items()
+    ]
+
+    provider = TaskProcessingProvider(
+        id=APP_ID,
+        name="Local Machine Translation",
+        task_type=TASK_TYPE_ID,
+        input_shape_enum_values={
+            "origin_language": [DETECT_LANGUAGE],
+            "target_language": languages,
+        },
+        input_shape_defaults={
+            "origin_language": DETECT_LANGUAGE.value,
+        },
+    )
+    await nc.providers.task_processing.register(provider)
+
+    if isinstance(worker, threading.Thread):
+        worker._stop()  # pyright: ignore[reportAttributeAccessIssue]
+
+    worker = BackgroundProcessTask()
+    worker.start()
+
     return ""
 
 
 if __name__ == "__main__":
-    uvicorn_log_level = uvicorn.logging.TRACE_LOG_LEVEL if config["log_level"] == logging.DEBUG else config["log_level"]
+    uvicorn_log_level = (
+        uvicorn.logging.TRACE_LOG_LEVEL
+        if config["log_level"] == logging.DEBUG
+        else config["log_level"]
+    )
     run_app("main:APP", log_level=uvicorn_log_level)
