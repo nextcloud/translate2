@@ -6,6 +6,7 @@ import os
 from contextlib import contextmanager
 from copy import deepcopy
 from time import perf_counter
+from typing import TypedDict
 
 import ctranslate2
 from sentencepiece import SentencePieceProcessor
@@ -14,6 +15,12 @@ from util import clean_text
 GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "cuda") != "cpu"
 
 logger = logging.getLogger(__name__)
+
+class TranslateRequest(TypedDict):
+    origin_language: str
+    input: str
+    target_language: str
+
 
 if os.getenv("CI") is not None:
     ctranslate2.set_random_seed(420)
@@ -64,7 +71,7 @@ class Service:
                 "Error reading languages list, ensure languages.json is present in the project root"
             ) from e
 
-    def get_lang_names(self):
+    def get_languages(self) -> dict[str, str]:
         return self.languages
 
     def load_config(self, config: dict):
@@ -76,11 +83,11 @@ class Service:
 
         self.config = config_copy
 
-    def translate(self, to_language: str, text: str) -> str:
-        logger.debug(f"translating text to: {to_language}")
+    def translate(self, data: TranslateRequest) -> str:
+        logger.debug(f"translating text to: {data['target_language']}")
 
         with translate_context(self.config) as (tokenizer, translator):
-            input_tokens = tokenizer.Encode(f"<2{to_language}> {clean_text(text)}", out_type=str)
+            input_tokens = tokenizer.Encode(f"<2{data['target_language']}> {clean_text(data['input'])}", out_type=str)
             results = translator.translate_batch(
                 [input_tokens],
                 batch_type="tokens",
@@ -93,5 +100,5 @@ class Service:
             # todo: handle multiple hypotheses
             translation = tokenizer.Decode(results[0].hypotheses[0])
 
-        logger.info(f"Translated string: {translation}")
+        logger.debug(f"Translated string: {translation}")
         return translation
