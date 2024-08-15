@@ -49,5 +49,5 @@ run:
 register:
 	docker exec master-nextcloud-1 sudo -u www-data php occ app_api:app:unregister translate2 --silent || true
 	docker exec master-nextcloud-1 sudo -u www-data php occ app_api:app:register translate2 manual_install --json-info \
-  "{\"appid\":\"translate2\",\"name\":\"Local large language model\",\"daemon_config_name\":\"manual_install\",\"version\":\"1.0.0\",\"secret\":\"12345\",\"host\":\"host.docker.internal\",\"port\":9081,\"scopes\":{\"required\":[\"AI_PROVIDERS\"],\"optional\":[]},\"protocol\":\"http\",\"system_app\":0}" \
+  "{\"appid\":\"translate2\",\"name\":\"Local large language model\",\"daemon_config_name\":\"manual_install\",\"version\":\"2.0.0\",\"secret\":\"12345\",\"host\":\"host.docker.internal\",\"port\":10034,\"scopes\":[\"AI_PROVIDERS\"]}" \
   --force-scopes --wait-finish
