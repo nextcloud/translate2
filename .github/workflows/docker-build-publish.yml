@@ -3,7 +3,7 @@
 # https://github.com/nextcloud/.github
 # https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization
 
-name: Build and publish app release
+name: Docker build and publish
 
 on:
   push:
@@ -16,6 +16,9 @@ env:
 jobs:
   build_and_publish:
     runs-on: ubuntu-latest
+
+    # Only allowed to be run on nextcloud repositories
+    if: ${{ github.repository_owner == 'nextcloud' }}
 
     steps:
       - name: Checkout app
