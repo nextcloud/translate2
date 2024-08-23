@@ -6,6 +6,8 @@
 	<description>
 	<![CDATA[
 **Requires [`AppAPI`](https://github.com/cloud-py-api/app_api) to work.**
+
+For installation steps and other details, see https://docs.nextcloud.com/server/latest/admin_manual/ai/app_translate2.html
 	]]></description>
 	<version>2.0.3</version>
 	<licence>MIT</licence>
