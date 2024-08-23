@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.0.2 – 2024-08-23
+### Fixed
+- graceful shutdown of bg process and fix COMPUTE_DEVICE check @kyteinsky
+
 ## 2.0.1 – 2024-08-20
 ### Fixed
 - update pip requirements @kyteinsky
