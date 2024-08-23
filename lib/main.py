@@ -106,7 +106,13 @@ def task_fetch_thread(service: Service):
             logger.debug("Shutting down task fetch worker, app not enabled")
             break
 
-        task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
+        try:
+            task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
+        except Exception as e:
+            logger.error(f"Error fetching task: {e}")
+            sleep(IDLE_POLLING_INTERVAL)
+            continue
+
         if not task:
             logger.debug("No tasks found")
             sleep(IDLE_POLLING_INTERVAL)
