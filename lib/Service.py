@@ -12,7 +12,7 @@ import ctranslate2
 from sentencepiece import SentencePieceProcessor
 from util import clean_text
 
-GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "cuda") != "cpu"
+GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "CPU") != "CPU"
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ def translate_context(config: dict):
             }
         )
     except KeyError as e:
-        raise Exception("Incorrect config file") from e
+        raise Exception("Incorrect config file, ensure all required keys are present from the default config") from e
     except Exception as e:
         raise Exception("Error loading the translation model") from e
 
