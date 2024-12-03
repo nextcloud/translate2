@@ -1,3 +1,7 @@
+#
+# SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: MIT
+#
 """The main module of the translate2 app"""
 
 import logging
