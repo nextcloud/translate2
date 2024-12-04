@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: MIT
+version = 1
+SPDX-PackageName = "translate2"
+SPDX-PackageSupplier = "Nextcloud <info@nextcloud.com>"
+SPDX-PackageDownloadLocation = "https://github.com/nextcloud/translate2"
+
+[[annotations]]
+path = ["config.json", "languages.json", "requirements.in.txt", "requirements.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2024 Nextcloud GmbH and Nextcloud contributors"
+SPDX-License-Identifier = "MIT"

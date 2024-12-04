@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: MIT
 FROM nvidia/cuda:12.2.2-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND noninteractive
