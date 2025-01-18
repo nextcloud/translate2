@@ -1,23 +1,38 @@
+#
+# SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: MIT
+#
+
 """The main module of the translate2 app"""
+import os
+
 
 import logging
-import os
 import threading
-from contextlib import asynccontextmanager, suppress
+import traceback
+from contextlib import asynccontextmanager
 from time import sleep
 
+import httpx
 import uvicorn.logging
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, responses
-from nc_py_api import AsyncNextcloudApp, NextcloudApp
+from nc_py_api import AsyncNextcloudApp, NextcloudApp, NextcloudException
 from nc_py_api.ex_app import LogLvl, run_app, set_handlers
 from nc_py_api.ex_app.providers.task_processing import ShapeEnumValue, TaskProcessingProvider
-from Service import Service, TranslateRequest
-from util import load_config_file, save_config_file
+
+#Instead of  "from Service import Service, TranslateRequest" used "from lib.Service import Service, TranslateRequest"
+from lib.Service import Service, TranslateRequest
+from lib.util import load_config_file
+
+import concurrent.futures
+
 
 load_dotenv()
 
 config = load_config_file()
+
+
 
 # logging config
 logging.basicConfig()
@@ -25,41 +40,39 @@ logger = logging.getLogger(__name__)
 logger.setLevel(config["log_level"])
 
 
-class ModelConfig(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def __setitem__(self, key, value):
-        if key == "path":
-            config["loader"]["hf_model_path"] = value
-            service.load_config(config)
-            save_config_file(config)
-
-        super().__setitem__(key, value)
+# Removed the ModelConfig class as the dynamic model path update is not used in the current implementation.
 
 
 # download models if "model_name" key is present in the config
 models_to_fetch = None
 cache_dir = os.getenv("APP_PERSISTENT_STORAGE", "models/")
 if "model_name" in config["loader"]:
-    models_to_fetch = { config["loader"]["model_name"]: ModelConfig({ "cache_dir": cache_dir }) }
+    models_to_fetch = { config["loader"]["model_name"]: { "cache_dir": cache_dir } }
 
 
-worker = None
+app_enabled = threading.Event()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    global worker
-    set_handlers(
-        fast_api_app=APP,
-        enabled_handler=enabled_handler,  # type: ignore
-        models_to_fetch=models_to_fetch,  # type: ignore
-    )
-    worker = BackgroundProcessTask()
-    worker.start()
-    yield
-    if isinstance(worker, threading.Thread):
-        worker._stop()  # pyright: ignore[reportAttributeAccessIssue]
-        worker = None
+    global app_enabled
+    service= Service(config)
+    try:
+        set_handlers(
+            fast_api_app=APP,
+            enabled_handler=enabled_handler,  # type: ignore
+            models_to_fetch=models_to_fetch,  # type: ignore
+        )
+
+        nc = NextcloudApp()
+        if nc.enabled_state:
+            app_enabled.set()
+            worker = threading.Thread(target=task_fetch_thread, args=(service,))
+            worker.start()
+
+        yield
+    finally:
+        #clean up the Service instance and background workers.
+        app_enabled.clear()
+        service.close()
 
 
 APP_ID = "translate2"
@@ -67,40 +80,54 @@ TASK_TYPE_ID = "core:text2text:translate"
 IDLE_POLLING_INTERVAL = config["idle_polling_interval"]
 DETECT_LANGUAGE = ShapeEnumValue(name="Detect Language", value="auto")
 APP = FastAPI(lifespan=lifespan)
-service = Service(config)
 
 
 def report_error(task: dict | None, exc: Exception):
-    with suppress(Exception):
+    try:
+        traceback.print_exc()
         nc = NextcloudApp()
         nc.log(LogLvl.ERROR, str(exc))
         if task:
-            nc.providers.task_processing.report_result(task["id"], error_message=str(exc))
+            nc.providers.task_processing.report_result(
+                task["id"],
+                error_message=f"Error translating the input text: {exc}"
+            )
+    except (NextcloudException, httpx.NetworkError) as e:
+        logger.error(f"Error reporting error to the server: {e}")
 
 
 @APP.exception_handler(Exception)
 async def _(request: Request, exc: Exception):
     logger.error("Error processing request", request.url.path, exc)
-
-    task: dict | None = getattr(exc, "args", None)
-    report_error(task, exc)
+    report_error(None, exc)
 
     return responses.JSONResponse({
         "error": "An error occurred while processing the request, please check the logs for more info"
     }, 500)
 
 
-class BackgroundProcessTask(threading.Thread):
-    def run(self, *args, **kwargs):  # pylint: disable=unused-argument
-        nc = NextcloudApp()
+
+# Used Worker thread to fetch and process translation tasks from Nextcloud and a thread pool for concurrent processing.
+
+def task_fetch_thread(service: Service):
+    global app_enabled
+
+    nc = NextcloudApp()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         while True:
-            if not nc.enabled_state:
-                logger.debug("App is disabled")
+            if not app_enabled.is_set():
+                logger.debug("Shutting down task fetch worker, app not enabled")
                 break
 
-            task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
+            try:
+                task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
+            except Exception as e:
+                logger.error(f"Error fetching task: {e}")
+                sleep(IDLE_POLLING_INTERVAL)
+                continue
+
             if not task:
-                logger.debug("No tasks found")
+                logger.debug(f"No tasks found. Sleeping for {IDLE_POLLING_INTERVAL}s")
                 sleep(IDLE_POLLING_INTERVAL)
                 continue
 
@@ -111,33 +138,42 @@ class BackgroundProcessTask(threading.Thread):
                 logger.error("Invalid task object received, expected task object with input key")
                 continue
 
-            output = None
-            error = None
             try:
                 request = TranslateRequest(**input_)
-                translation = service.translate(request)
-                output = translation
+                executor.submit(process_task, service, nc, task, request)
             except Exception as e:
-                e.args = (task,)
+                logger.error(f"Error submitting task to executor: {e}")
                 report_error(task, e)
-                error = f"Error translating the input text: {e}"
 
-            nc.providers.task_processing.report_result(
-                task_id=task["task"]["id"],
-                output={"output": output},
-                error_message=error,
-            )
+def process_task(service: Service, nc: NextcloudApp, task: dict, request: TranslateRequest):
+    try:
+        translation = service.translate(request)
+        nc.providers.task_processing.report_result(
+            task_id=task["task"]["id"],
+            output={"output": translation},
+        )
+        logger.info(f"Successfully processed task {task['task']['id']}")
+    except NextcloudException as e:
+        logger.error(f"Nextcloud exception while reporting result: {e}")
+        report_error(task, e)
+    except Exception as e:
+        report_error(task, e)
 
+enabled_lock = threading.Lock()
 
 async def enabled_handler(enabled: bool, nc: AsyncNextcloudApp) -> str:
-    global worker
+    global app_enabled
     print(f"enabled={enabled}")
 
+    service = Service(config)
+
     if not enabled:
-        await nc.providers.task_processing.unregister(APP_ID)
-        if isinstance(worker, threading.Thread):
-            worker._stop()  # pyright: ignore[reportAttributeAccessIssue]
-            worker = None
+        try:
+            await nc.providers.task_processing.unregister(APP_ID)
+            app_enabled.clear()
+        except Exception as e:
+            logger.error(f"Error unregistering the app: {e}")
+
         return ""
 
     languages = [
@@ -157,13 +193,17 @@ async def enabled_handler(enabled: bool, nc: AsyncNextcloudApp) -> str:
             "origin_language": DETECT_LANGUAGE.value,
         },
     )
-    await nc.providers.task_processing.register(provider)
+    try:
+        await nc.providers.task_processing.register(provider)
+    except Exception as e:
+        logger.error(f"Error registering the app: {e}")
+        return ""
 
-    if isinstance(worker, threading.Thread):
-        worker._stop()  # pyright: ignore[reportAttributeAccessIssue]
-
-    worker = BackgroundProcessTask()
-    worker.start()
+    if not app_enabled.is_set():
+        app_enabled.set()
+        if not hasattr(service, "_worker"):
+            service._worker = threading.Thread(target=task_fetch_thread, args=(service,))
+            service._worker.start()
 
     return ""
 
