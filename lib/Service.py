@@ -20,6 +20,10 @@ GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "CPU") != "CPU"
 
 logger = logging.getLogger(__name__)
 
+class ServiceException(Exception):
+    pass
+
+
 class TranslateRequest(TypedDict):
     origin_language: str
     input: str
@@ -43,9 +47,11 @@ def translate_context(config: dict):
             }
         )
     except KeyError as e:
-        raise Exception("Incorrect config file, ensure all required keys are present from the default config") from e
+        raise ServiceException(
+            "Incorrect config file, ensure all required keys are present from the default config"
+        ) from e
     except Exception as e:
-        raise Exception("Error loading the translation model") from e
+        raise ServiceException("Error loading the translation model") from e
 
     try:
         start = perf_counter()
@@ -53,7 +59,7 @@ def translate_context(config: dict):
         elapsed = perf_counter() - start
         logger.info(f"time taken: {elapsed:.2f}s")
     except Exception as e:
-        raise Exception("Error translating the input text") from e
+        raise ServiceException("Error translating the input text") from e
     finally:
         del tokenizer
         # todo: offload to cpu?
@@ -71,7 +77,7 @@ class Service:
             with open("languages.json") as f:
                 self.languages = json.loads(f.read())
         except Exception as e:
-            raise Exception(
+            raise ServiceException(
                 "Error reading languages list, ensure languages.json is present in the project root"
             ) from e
 
@@ -99,7 +105,7 @@ class Service:
             )
 
             if len(results) == 0 or len(results[0].hypotheses) == 0:
-                raise Exception("Empty result returned from translator")
+                raise ServiceException("Empty result returned from translator")
 
             # todo: handle multiple hypotheses
             translation = tokenizer.Decode(results[0].hypotheses[0])
