@@ -8,7 +8,7 @@ import logging
 import os
 import threading
 import traceback
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from time import sleep
 
 import httpx
@@ -17,8 +17,9 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, responses
 from nc_py_api import AsyncNextcloudApp, NextcloudApp, NextcloudException
 from nc_py_api.ex_app import LogLvl, run_app, set_handlers
+from nc_py_api.ex_app.integration_fastapi import fetch_models_task
 from nc_py_api.ex_app.providers.task_processing import ShapeEnumValue, TaskProcessingProvider
-from Service import Service, TranslateRequest
+from Service import Service, ServiceException, TranslateRequest
 from util import load_config_file, save_config_file
 
 load_dotenv()
@@ -63,6 +64,9 @@ async def lifespan(_: FastAPI):
     nc = NextcloudApp()
     if nc.enabled_state:
         app_enabled.set()
+        if "hf_model_path" not in config["loader"] and "model_path" not in config["loader"]:
+            with suppress(NextcloudException):
+                fetch_models_task(nc, models_to_fetch, 50)  # pyright: ignore[reportArgumentType]
         worker = threading.Thread(target=task_fetch_thread, args=(Service(config),))
         worker.start()
 
@@ -91,13 +95,21 @@ def report_error(task: dict | None, exc: Exception):
         logger.error(f"Error reporting error to the server: {e}")
 
 
-@APP.exception_handler(Exception)
-async def _(request: Request, exc: Exception):
+@APP.exception_handler(ServiceException)
+async def _(request: Request, exc: ServiceException):
     logger.error("Error processing request", request.url.path, exc)
     report_error(None, exc)
 
+    return responses.JSONResponse({ "error": str(exc) }, 500)
+
+
+@APP.exception_handler(Exception)
+async def _(request: Request, exc: Exception):
+    logger.error("Unknown error processing request", request.url.path, exc)
+    report_error(None, exc)
+
     return responses.JSONResponse({
-        "error": "An error occurred while processing the request, please check the logs for more info"
+        "error": "An error occurred while processing the translation request"
     }, 500)
 
 
@@ -132,10 +144,9 @@ def task_fetch_thread(service: Service):
         try:
             request = TranslateRequest(**input_)
             translation = service.translate(request)
-            output = translation
             nc.providers.task_processing.report_result(
                 task_id=task["task"]["id"],
-                output={"output": output},
+                output={"output": translation},
             )
         except Exception as e:
             report_error(task, e)
