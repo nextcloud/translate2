@@ -85,13 +85,6 @@ jobs:
         with:
           path: ${{ env.APP_ID }}
 
-      - name: Checkout AppAPI
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-        with:
-          repository: cloud-py-api/app_api
-          path: apps/app_api
-          ref: v2.7.0
-
       - name: Set up Nextcloud
         if: ${{ matrix.databases != 'pgsql'}}
         run: |
@@ -146,19 +139,27 @@ jobs:
         env:
           CREDS: "admin:password"
         run: |
-          TASK=$(curl -X POST -u "$CREDS" -H "oCS-APIRequest: true" -H "Content-type: application/json" http://localhost:8080/ocs/v2.php/taskprocessing/schedule?format=json --data-raw '{"input": {"input": "Hello World!"},"type":"core:text2text:translate", "appId": "test", "customId": ""}')
+          set -x
+          sleep 301
+          TASKTYPES=$(curl -s -u "$CREDS" -H "oCS-APIRequest: true" -H "Content-type: application/json" http://localhost:8080/ocs/v2.php/taskprocessing/tasktypes?format=json)
+          echo $TASKTYPES
+          [ "$(echo $TASKTYPES | jq -r '.ocs.meta.status')" == "ok" ]
+
+          TASK=$(curl -s -X POST -u "$CREDS" -H "oCS-APIRequest: true" -H "Content-type: application/json" http://localhost:8080/ocs/v2.php/taskprocessing/schedule?format=json --data-raw '{"input": {"input": "Hello World!", "origin_language": "auto", "target_language": "de"},"type":"core:text2text:translate", "appId": "test", "customId": ""}')
           echo $TASK
+          [ "$(echo $TASK | jq -r '.ocs.meta.status')" == "ok" ]
+
           TASK_ID=$(echo $TASK | jq '.ocs.data.task.id')
           NEXT_WAIT_TIME=0
           TASK_STATUS='"STATUS_SCHEDULED"'
           until [ $NEXT_WAIT_TIME -eq 35 ] || [ "$TASK_STATUS" == '"STATUS_SUCCESSFUL"' ] || [ "$TASK_STATUS" == '"STATUS_FAILED"' ]; do
-            TASK=$(curl -u "$CREDS" -H "oCS-APIRequest: true" http://localhost:8080/ocs/v2.php/taskprocessing/task/$TASK_ID?format=json)
+            TASK=$(curl -s -u "$CREDS" -H "oCS-APIRequest: true" http://localhost:8080/ocs/v2.php/taskprocessing/task/$TASK_ID?format=json)
             echo $TASK
             TASK_STATUS=$(echo $TASK | jq '.ocs.data.task.status')
             echo $TASK_STATUS
             sleep $(( NEXT_WAIT_TIME++ ))
           done
-          curl -u "$CREDS" -H "oCS-APIRequest: true" http://localhost:8080/ocs/v2.php/taskprocessing/task/$TASK_ID?format=json
+          curl -s -u "$CREDS" -H "oCS-APIRequest: true" http://localhost:8080/ocs/v2.php/taskprocessing/task/$TASK_ID?format=json
           [ "$TASK_STATUS" == '"STATUS_SUCCESSFUL"' ]
           [ "$(echo $TASK | jq '.ocs.data.task.output')" == '"Hallo Welt!"' ]
 
