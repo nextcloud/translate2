@@ -16,6 +16,14 @@
     "inference": {
         "max_batch_size": 8192,
         "sampling_temperature": 0.0001,
-        "disable_unk": true
+        "disable_unk": true,
+        "replace_unknowns": true,
+        "no_repeat_ngram_size": 4,
+        "repetition_penalty": 1.1,
+        "length_penalty": 0.6,
+        "beam_size": 4,
+        "patience": 1.0,
+        "num_hypotheses": 1,
+        "coverage_penalty": 0.1
     }
 }
