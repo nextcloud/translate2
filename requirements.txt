@@ -2,7 +2,7 @@ annotated-types==0.7.0
 anyio==4.4.0
 certifi==2024.7.4
 charset-normalizer==3.3.2
-click==8.1.7
+click==8.1.8
 ctranslate2==4.3.1
 fastapi==0.112.1
 filelock==3.15.4
