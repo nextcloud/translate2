@@ -17,7 +17,7 @@ nc-py-api==0.20.0
 numpy==2.1.0
 packaging==24.1
 pydantic==2.8.2
-pydantic_core==2.20.1
+pydantic_core==2.35.2
 python-dotenv==1.0.1
 PyYAML==6.0.2
 requests==2.32.3
