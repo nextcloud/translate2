@@ -162,10 +162,10 @@ async def enabled_handler(enabled: bool, nc: AsyncNextcloudApp) -> str:
         try:
             await nc.providers.task_processing.unregister(APP_ID)
             app_enabled.clear()
+            return ""
         except Exception as e:
             logger.error(f"Error unregistering the app: {e}")
-
-        return ""
+            return f"Error unregistering the app: {e}"
 
     languages = [
         ShapeEnumValue(name=lang_name, value=lang_id)
@@ -188,7 +188,7 @@ async def enabled_handler(enabled: bool, nc: AsyncNextcloudApp) -> str:
         await nc.providers.task_processing.register(provider)
     except Exception as e:
         logger.error(f"Error registering the app: {e}")
-        return ""
+        return f"Error registering the app: {e}"
 
     if not app_enabled.is_set():
         app_enabled.set()
