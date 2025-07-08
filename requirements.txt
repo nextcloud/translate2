@@ -11,14 +11,14 @@ h11==0.14.0
 httpcore==1.0.5
 httptools==0.6.1
 httpx==0.27.0
-huggingface-hub==0.24.6
+huggingface-hub==0.33.2
 idna==3.7
 nc-py-api==0.20.0
 numpy==2.1.0
 packaging==24.1
 pydantic==2.8.2
 pydantic_core==2.35.2
-python-dotenv==1.0.1
+python-dotenv==1.1.1
 PyYAML==6.0.2
 requests==2.32.3
 sentencepiece==0.2.0
