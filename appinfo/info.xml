@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
   - SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
-  - SPDX-License-Identifier: MIT
+  - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <info>
 	<id>translate2</id>
