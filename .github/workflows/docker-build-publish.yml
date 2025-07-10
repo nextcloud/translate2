@@ -58,10 +58,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get HEAD git commit timestamp
+        run: echo "HEAD_TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
+
       - name: Build and push
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6
         env:
-          SOURCE_DATE_EPOCH: 0
+          SOURCE_DATE_EPOCH: ${{ env.HEAD_TIMESTAMP }}
         with:
           context: .
           push: true
