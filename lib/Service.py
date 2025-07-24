@@ -14,11 +14,17 @@ from typing import TypedDict
 
 import ctranslate2
 from sentencepiece import SentencePieceProcessor
-from util import clean_text
+from nc_py_api.ex_app import setup_nextcloud_logging
+
+from util import clean_text, load_config_file
 
 GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "CPU") != "CPU"
 
+config = load_config_file()
+
 logger = logging.getLogger(__name__)
+logger.setLevel(config["log_level"])
+setup_nextcloud_logging(os.environ["APP_ID"], config["log_level"])
 
 class ServiceException(Exception):
     pass

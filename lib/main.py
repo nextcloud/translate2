@@ -17,7 +17,7 @@ import uvicorn.logging
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, responses
 from nc_py_api import AsyncNextcloudApp, NextcloudApp, NextcloudException
-from nc_py_api.ex_app import LogLvl, run_app, set_handlers
+from nc_py_api.ex_app import LogLvl, run_app, set_handlers, setup_nextcloud_logging
 from nc_py_api.ex_app.integration_fastapi import fetch_models_task
 from nc_py_api.ex_app.providers.task_processing import ShapeEnumValue, TaskProcessingProvider
 from Service import Service, ServiceException, TranslateRequest
@@ -31,6 +31,7 @@ config = load_config_file()
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(config["log_level"])
+setup_nextcloud_logging(os.environ["APP_ID"], config["log_level"])
 
 
 class ModelConfig(dict):
@@ -126,8 +127,7 @@ def task_fetch_thread(service: Service):
         try:
             task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
         except (NextcloudException, JSONDecodeError) as e:
-            tb_str = "".join(traceback.format_exception(e))
-            logger.error(f"Error fetching the next task {tb_str}")
+            logger.error("Error fetching the next task", exc_info=e)
             sleep(IDLE_POLLING_INTERVAL)
             continue
         except (
@@ -136,8 +136,7 @@ def task_fetch_thread(service: Service):
                 httpx.LocalProtocolError,
                 httpx.PoolTimeout,
         ) as e:
-            tb_str = "".join(traceback.format_exception(e))
-            logger.debug(f"Ignored error during task polling {tb_str}")
+            logger.debug("Ignored error during task polling", exc_info=e)
             sleep(IDLE_POLLING_INTERVAL / 2)
             continue
 
@@ -161,12 +160,13 @@ def task_fetch_thread(service: Service):
                     task_id=task["task"]["id"],
                     output={"output": translation},
                 )
-            except Exception:
+            except Exception: # Retries when a failure occurs and creates a new NextcloudApp instance
+                nc = NextcloudApp()
                 nc.providers.task_processing.report_result(
                     task_id=task["task"]["id"],
                     output={"output": translation},
                 )
-        except Exception as e:
+        except Exception as e: # This will also catch the retry for reporting the result
             report_error(task, e)
 
 
