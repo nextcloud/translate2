@@ -9,6 +9,7 @@ import os
 import threading
 import traceback
 from contextlib import asynccontextmanager, suppress
+from json import JSONDecodeError
 from time import sleep
 
 import httpx
@@ -124,9 +125,20 @@ def task_fetch_thread(service: Service):
 
         try:
             task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
-        except Exception as e:
-            logger.error(f"Error fetching task: {e}")
+        except (NextcloudException, JSONDecodeError) as e:
+            tb_str = "".join(traceback.format_exception(e))
+            logger.error(f"Error fetching the next task {tb_str}")
             sleep(IDLE_POLLING_INTERVAL)
+            continue
+        except (
+                httpx.RemoteProtocolError,
+                httpx.ReadError,
+                httpx.LocalProtocolError,
+                httpx.PoolTimeout,
+        ) as e:
+            tb_str = "".join(traceback.format_exception(e))
+            logger.debug(f"Ignored error during task polling {tb_str}")
+            sleep(IDLE_POLLING_INTERVAL / 2)
             continue
 
         if not task:
@@ -144,10 +156,16 @@ def task_fetch_thread(service: Service):
         try:
             request = TranslateRequest(**input_)
             translation = service.translate(request)
-            nc.providers.task_processing.report_result(
-                task_id=task["task"]["id"],
-                output={"output": translation},
-            )
+            try:
+                nc.providers.task_processing.report_result(
+                    task_id=task["task"]["id"],
+                    output={"output": translation},
+                )
+            except Exception:
+                nc.providers.task_processing.report_result(
+                    task_id=task["task"]["id"],
+                    output={"output": translation},
+                )
         except Exception as e:
             report_error(task, e)
 
