@@ -31,7 +31,7 @@ config = load_config_file()
 logging.basicConfig()
 logger = logging.getLogger(os.environ["APP_ID"] + __name__)
 logger.setLevel(config["log_level"])
-setup_nextcloud_logging(os.environ["APP_ID"] + __name__, config["log_level"])
+setup_nextcloud_logging(os.environ["APP_ID"] + "_" + __name__, config["log_level"])
 
 
 class ModelConfig(dict):
