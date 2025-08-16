@@ -1,0 +1,172 @@
+# SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Integration test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - stable*
+
+env:
+  APP_ID: translate2
+  APP_HOST: 0.0.0.0
+  APP_PORT: 9081
+  APP_SECRET: 12345
+  NEXTCLOUD_URL: http://localhost:8080
+  COMPUTE_DEVICE: cpu
+
+concurrency:
+  group: integration-test-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+
+jobs:
+  transcription:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # do not stop on another job's failure
+      fail-fast: false
+      matrix:
+        php-versions: [ '8.1' ]
+        databases: [ 'sqlite' ]
+        server-versions: [ 'stable30', 'stable31', 'master' ]
+
+    name: Integration test on ${{ matrix.server-versions }} php@${{ matrix.php-versions }}
+
+    env:
+      MYSQL_PORT: 4444
+      PGSQL_PORT: 4445
+
+    services:
+      mysql:
+        image: mariadb:10.5
+        ports:
+          - 4444:3306/tcp
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+        options: --health-cmd="mysqladmin ping" --health-interval 5s --health-timeout 2s --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 4445:5432/tcp
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: rootpassword
+          POSTGRES_DB: nextcloud
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 2s --health-retries 5
+
+    steps:
+      - name: Checkout server
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          repository: nextcloud/server
+          ref: ${{ matrix.server-versions }}
+
+      - name: Checkout submodules
+        shell: bash
+        run: |
+          auth_header="$(git config --local --get http.https://github.com/.extraheader)"
+          git submodule sync --recursive
+          git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
+
+      - name: Set up php ${{ matrix.php-versions }}
+        uses: shivammathur/setup-php@9e72090525849c5e82e596468b86eb55e9cc5401 # v2
+        with:
+          php-version: ${{ matrix.php-versions }}
+          tools: phpunit
+          extensions: mbstring, iconv, fileinfo, intl, sqlite, pdo_mysql, pdo_sqlite, pgsql, pdo_pgsql, gd, zip
+
+      - name: Checkout app
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          path: ${{ env.APP_ID }}
+
+      - name: Set up Nextcloud
+        if: ${{ matrix.databases != 'pgsql'}}
+        run: |
+          sleep 25
+          mkdir data
+          ./occ maintenance:install --verbose --database=${{ matrix.databases }} --database-name=nextcloud --database-host=127.0.0.1 --database-port=$MYSQL_PORT --database-user=root --database-pass=rootpassword --admin-user admin --admin-pass password
+          composer run serve &
+
+      - name: Set up Nextcloud
+        if: ${{ matrix.databases == 'pgsql'}}
+        run: |
+          sleep 25
+          mkdir data
+          ./occ maintenance:install --verbose --database=${{ matrix.databases }} --database-name=nextcloud --database-host=127.0.0.1 --database-port=$PGSQL_PORT --database-user=root --database-pass=rootpassword --admin-user admin --admin-pass password
+          composer run serve &
+
+      - name: Enable app_api
+        run: ./occ app:enable -vvv -f app_api
+
+      - name: Get app version
+        id: appinfo
+        uses: skjnldsv/xpath-action@7e6a7c379d0e9abc8acaef43df403ab4fc4f770c # master
+        with:
+          filename: ${{ env.APP_ID }}/appinfo/info.xml
+          expression: "/info/version/text()"
+
+      - name: Setup python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            ${{ env.APP_ID }}/requirements.txt
+
+      - name: Install and start ex-app's server
+        env:
+          PYTHONUNBUFFERED: 1
+          APP_VERSION: ${{ fromJson(steps.appinfo.outputs.result).version }}
+        working-directory:  ${{ env.APP_ID }}
+        run: |
+          set -x
+          pip install --no-deps -r requirements.txt
+          python3 lib/main.py 2>&1 > ex-app-logs &
+
+      - name: Register backend
+        run: |
+          set -x
+          ./occ app_api:daemon:register --net host manual_install "Manual Install" manual-install http localhost http://localhost:8080
+          ./occ app_api:app:register ${{ env.APP_ID }} manual_install --json-info "{\"appid\":\"${{ env.APP_ID }}\",\"name\":\"Local Machine Translation\",\"daemon_config_name\":\"manual_install\",\"version\":\"${{ fromJson(steps.appinfo.outputs.result).version }}\",\"secret\":\"${{ env.APP_SECRET }}\",\"port\":${{ env.APP_PORT}},\"scopes\":[\"AI_PROVIDERS\"],\"system_app\":0}" --force-scopes --wait-finish
+
+      - name: Run translation
+        env:
+          CREDS: "admin:password"
+        run: |
+          set -x
+          sleep 301
+          TASKTYPES=$(curl -s -u "$CREDS" -H "oCS-APIRequest: true" -H "Content-type: application/json" http://localhost:8080/ocs/v2.php/taskprocessing/tasktypes?format=json)
+          echo $TASKTYPES
+          [ "$(echo $TASKTYPES | jq -r '.ocs.meta.status')" == "ok" ]
+
+          TASK=$(curl -s -X POST -u "$CREDS" -H "oCS-APIRequest: true" -H "Content-type: application/json" http://localhost:8080/ocs/v2.php/taskprocessing/schedule?format=json --data-raw '{"input": {"input": "Hello World!", "origin_language": "auto", "target_language": "de"},"type":"core:text2text:translate", "appId": "test", "customId": ""}')
+          echo $TASK
+          [ "$(echo $TASK | jq -r '.ocs.meta.status')" == "ok" ]
+
+          TASK_ID=$(echo $TASK | jq '.ocs.data.task.id')
+          NEXT_WAIT_TIME=0
+          TASK_STATUS='"STATUS_SCHEDULED"'
+          until [ $NEXT_WAIT_TIME -eq 35 ] || [ "$TASK_STATUS" == '"STATUS_SUCCESSFUL"' ] || [ "$TASK_STATUS" == '"STATUS_FAILED"' ]; do
+            TASK=$(curl -s -u "$CREDS" -H "oCS-APIRequest: true" http://localhost:8080/ocs/v2.php/taskprocessing/task/$TASK_ID?format=json)
+            echo $TASK
+            TASK_STATUS=$(echo $TASK | jq '.ocs.data.task.status')
+            echo $TASK_STATUS
+            sleep $(( NEXT_WAIT_TIME++ ))
+          done
+          curl -s -u "$CREDS" -H "oCS-APIRequest: true" http://localhost:8080/ocs/v2.php/taskprocessing/task/$TASK_ID?format=json
+          [ "$TASK_STATUS" == '"STATUS_SUCCESSFUL"' ]
+          [ "$(echo $TASK | jq '.ocs.data.task.output')" == '"Hallo Welt!"' ]
+
+      - name: Show logs
+        if: always()
+        run: |
+          NC_debug=true ./occ migrations:status app_api
+          cat data/nextcloud.log
+          echo '--------------------------------------'
+          cat ${{ env.APP_ID }}/ex-app-logs

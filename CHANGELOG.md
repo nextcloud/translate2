@@ -1,6 +1,6 @@
 <!--
   - SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
-  - SPDX-License-Identifier: MIT
+  - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 # Change Log
 All notable changes to this project will be documented in this file.
