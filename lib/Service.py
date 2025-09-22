@@ -13,9 +13,8 @@ from time import perf_counter
 from typing import TypedDict
 
 import ctranslate2
-from sentencepiece import SentencePieceProcessor
 from nc_py_api.ex_app import setup_nextcloud_logging
-
+from sentencepiece import SentencePieceProcessor
 from util import clean_text
 
 GPU_ACCELERATED = os.getenv("COMPUTE_DEVICE", "CPU") != "CPU"

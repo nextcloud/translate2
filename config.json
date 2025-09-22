@@ -16,6 +16,7 @@
     "inference": {
         "max_batch_size": 8192,
         "sampling_temperature": 0.0001,
-        "disable_unk": true
+        "disable_unk": true,
+        "max_decoding_length": 10000
     }
 }
