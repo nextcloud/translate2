@@ -90,7 +90,7 @@ def report_error(task: dict | None, exc: Exception):
         nc.log(LogLvl.ERROR, str(exc))
         if task:
             nc.providers.task_processing.report_result(
-                task["id"],
+                task["task"]["id"],
                 error_message=f"Error translating the input text: {exc}"
             )
     except (NextcloudException, httpx.NetworkError) as e:
