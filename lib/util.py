@@ -5,15 +5,27 @@
 """Utility functions"""
 
 import json
+import os
 import re
 
+from nc_py_api.ex_app import persistent_storage
+
+CONFIG_FILENAME = "config.json"
 
 def clean_text(text: str) -> str:
     return re.sub(r"(\r?\n)+", " ", text).strip()
 
 
-def load_config_file(path: str = "config.json") -> dict:
-    with open(path) as f:
+def get_config_path() -> str:
+    # if the persistent storage contains a config file, return its path
+    if os.path.exists(os.path.join(persistent_storage(), CONFIG_FILENAME)):
+        return os.path.join(persistent_storage(), CONFIG_FILENAME)
+    # else return default path
+    return CONFIG_FILENAME
+
+
+def load_config_file() -> dict:
+    with open(get_config_path()) as f:
         config = json.loads(f.read())
         if "model_name" in config["loader"] and "model_path" in config["loader"]:
             raise Exception("Both 'model_name' and 'model_path' keys are present in the config. Please remove one of them.")  # noqa: E501
@@ -22,6 +34,6 @@ def load_config_file(path: str = "config.json") -> dict:
     return config
 
 
-def save_config_file(config: dict, path: str = "config.json") -> None:
-    with open(path, "w") as f:
+def save_config_file(config: dict) -> None:
+    with open(get_config_path(), "w") as f:
         f.write(json.dumps(config, indent=4))

@@ -4,12 +4,12 @@
 #
 """The main module of the translate2 app"""
 
+import json
 import logging
 import os
 import threading
 import traceback
 from contextlib import asynccontextmanager, suppress
-from json import JSONDecodeError
 from time import sleep
 
 import httpx
@@ -62,6 +62,8 @@ async def lifespan(_: FastAPI):
         enabled_handler=enabled_handler,  # type: ignore
         models_to_fetch=models_to_fetch,  # type: ignore
     )
+
+    print(f"Config loaded: {json.dumps(config, indent=4)}", flush=True)
 
     nc = NextcloudApp()
     if nc.enabled_state:
@@ -126,7 +128,7 @@ def task_fetch_thread(service: Service):
 
         try:
             task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
-        except (NextcloudException, JSONDecodeError) as e:
+        except (NextcloudException, json.JSONDecodeError) as e:
             logger.error("Error fetching the next task", exc_info=e)
             sleep(IDLE_POLLING_INTERVAL)
             continue
