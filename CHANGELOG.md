@@ -8,6 +8,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.2.0 – 2025-10-06
+### Added
+- use the config.json from the persistent volume if persent (#70) @kyteinsky
+
+### Fixed
+- correct task id from the task object for error reporting (#69) @kyteinsky
+
+### Changed
+- set max decoding length to 10k by default (#69) @kyteinsky
+- bump max NC version to 33
+
+
 ## 2.1.0 – 2025-08-05
 ### Added
 - Add reuse compliance (#23) @AndyScherzinger
