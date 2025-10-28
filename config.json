@@ -7,6 +7,7 @@
     "__comment::changes_to_the_config": "the program needs to be restarted if you change this file since it is stored in memory on startup",
     "log_level": 20,
     "idle_polling_interval": 5,
+    "idle_polling_interval_with_trigger": 300,
     "tokenizer_file": "spiece.model",
     "loader": {
         "model_name": "Nextcloud-AI/madlad400-3b-mt-ct2-int8_float32",
