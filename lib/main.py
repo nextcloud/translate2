@@ -12,7 +12,6 @@ import traceback
 from contextlib import asynccontextmanager, suppress
 from threading import Event
 
-from niquests import RequestException
 import uvicorn.logging
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, responses
@@ -20,6 +19,7 @@ from nc_py_api import AsyncNextcloudApp, NextcloudApp, NextcloudException
 from nc_py_api.ex_app import LogLvl, run_app, set_handlers, setup_nextcloud_logging
 from nc_py_api.ex_app.integration_fastapi import fetch_models_task
 from nc_py_api.ex_app.providers.task_processing import ShapeEnumValue, TaskProcessingProvider
+from niquests import RequestException
 from Service import Service, ServiceException, TranslateRequest
 from util import load_config_file, save_config_file
 
@@ -219,6 +219,7 @@ TRIGGER = Event()
 # Trigger is only available in nc >= 33
 def trigger_handler(providerId: str):
     global TRIGGER
+    TRIGGER.set()
 
 # Waits for interval seconds or IDLE_POLLING_INTERVAL seconds
 # if TRIGGER is received, IDLE_POLLING_INTERVAL is set to IDLE_POLLING_INTERVAL_WITH_TRIGGER
