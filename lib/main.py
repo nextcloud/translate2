@@ -10,9 +10,8 @@ import os
 import threading
 import traceback
 from contextlib import asynccontextmanager, suppress
-from time import sleep
+from threading import Event
 
-import httpx
 import uvicorn.logging
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, responses
@@ -20,6 +19,7 @@ from nc_py_api import AsyncNextcloudApp, NextcloudApp, NextcloudException
 from nc_py_api.ex_app import LogLvl, run_app, set_handlers, setup_nextcloud_logging
 from nc_py_api.ex_app.integration_fastapi import fetch_models_task
 from nc_py_api.ex_app.providers.task_processing import ShapeEnumValue, TaskProcessingProvider
+from niquests import RequestException
 from Service import Service, ServiceException, TranslateRequest
 from util import load_config_file, save_config_file
 
@@ -61,6 +61,7 @@ async def lifespan(_: FastAPI):
         fast_api_app=APP,
         enabled_handler=enabled_handler,  # type: ignore
         models_to_fetch=models_to_fetch,  # type: ignore
+        trigger_handler=trigger_handler,
     )
 
     print(f"Config loaded: {json.dumps(config, indent=4)}", flush=True)
@@ -81,6 +82,7 @@ async def lifespan(_: FastAPI):
 APP_ID = "translate2"
 TASK_TYPE_ID = "core:text2text:translate"
 IDLE_POLLING_INTERVAL = config["idle_polling_interval"]
+IDLE_POLLING_INTERVAL_WITH_TRIGGER = config["idle_polling_interval_with_trigger"]
 DETECT_LANGUAGE = ShapeEnumValue(name="Detect Language", value="detect_language")
 APP = FastAPI(lifespan=lifespan)
 
@@ -95,7 +97,7 @@ def report_error(task: dict | None, exc: Exception):
                 task["task"]["id"],
                 error_message=f"Error translating the input text: {exc}"
             )
-    except (NextcloudException, httpx.NetworkError) as e:
+    except (NextcloudException, RequestException) as e:
         logger.error(f"Error reporting error to the server: {e}")
 
 
@@ -130,21 +132,16 @@ def task_fetch_thread(service: Service):
             task = nc.providers.task_processing.next_task([APP_ID], [TASK_TYPE_ID])
         except (NextcloudException, json.JSONDecodeError) as e:
             logger.error("Error fetching the next task", exc_info=e)
-            sleep(IDLE_POLLING_INTERVAL)
+            wait_for_task()
             continue
-        except (
-                httpx.RemoteProtocolError,
-                httpx.ReadError,
-                httpx.LocalProtocolError,
-                httpx.PoolTimeout,
-        ) as e:
+        except RequestException as e:
             logger.debug("Ignored error during task polling", exc_info=e)
-            sleep(IDLE_POLLING_INTERVAL / 2)
+            wait_for_task(IDLE_POLLING_INTERVAL / 2)
             continue
 
         if not task:
             logger.debug("No tasks found")
-            sleep(IDLE_POLLING_INTERVAL)
+            wait_for_task()
             continue
 
         logger.debug(f"Processing task: {task}")
@@ -216,6 +213,25 @@ async def enabled_handler(enabled: bool, nc: AsyncNextcloudApp) -> str:
         worker.start()
 
     return ""
+
+
+TRIGGER = Event()
+# Trigger is only available in nc >= 33
+def trigger_handler(providerId: str):
+    global TRIGGER
+    TRIGGER.set()
+
+# Waits for interval seconds or IDLE_POLLING_INTERVAL seconds
+# if TRIGGER is received, IDLE_POLLING_INTERVAL is set to IDLE_POLLING_INTERVAL_WITH_TRIGGER
+def wait_for_task(interval = None):
+    global TRIGGER
+    global IDLE_POLLING_INTERVAL
+    global IDLE_POLLING_INTERVAL_WITH_TRIGGER
+    if interval is None:
+        interval = IDLE_POLLING_INTERVAL
+    if TRIGGER.wait(timeout=interval):
+        IDLE_POLLING_INTERVAL = IDLE_POLLING_INTERVAL_WITH_TRIGGER
+    TRIGGER.clear()
 
 
 if __name__ == "__main__":
