@@ -83,7 +83,7 @@ APP_ID = "translate2"
 TASK_TYPE_ID = "core:text2text:translate"
 IDLE_POLLING_INTERVAL = config["idle_polling_interval"]
 IDLE_POLLING_INTERVAL_WITH_TRIGGER = config["idle_polling_interval_with_trigger"]
-DETECT_LANGUAGE = ShapeEnumValue(name="Detect Language", value="auto")
+DETECT_LANGUAGE = ShapeEnumValue(name="Detect Language", value="detect_language")
 APP = FastAPI(lifespan=lifespan)
 
 
