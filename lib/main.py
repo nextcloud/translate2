@@ -122,6 +122,7 @@ async def _(request: Request, exc: Exception):
 def task_fetch_thread(service: Service):
     global app_enabled
 
+    service.load_model()
     nc = NextcloudApp()
     while True:
         if not app_enabled.is_set():
