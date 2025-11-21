@@ -8,6 +8,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.3.0 – 2025-11-21
+### Added
+- Implement support for taskprocessing trigger event (#78) @marcelklehr
+- load the model once and keep it loaded (#82) @kyteinsky
+
+### Fixed
+- use cpu device when rocm is the compute device (#80) @kyteinsky
+
+### Changed
+- use "detect_language" instead of "auto" for lang detection enum value (#75) @kyteinsky
+- update app description in info.xml and readme (#81) @kyteinsky
+
+
 ## 2.2.0 – 2025-10-06
 ### Added
 - use the config.json from the persistent volume if persent (#70) @kyteinsky
