@@ -1,0 +1,194 @@
+repository_link: https://github.com/nextcloud/translate2
+title: "Change Log"
+description: "All notable changes to this project will be documented in this file."
+markdown_preamble: |-
+  <!--
+    - SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
+    - SPDX-License-Identifier: MIT
+  -->
+  # Change Log
+  All notable changes to this project will be documented in this file.
+
+  The format is based on [Keep a Changelog](http://keepachangelog.com/)
+  and this project adheres to [Semantic Versioning](http://semver.org/).
+
+entries:
+  - version: "2.3.0"
+    release_date: "2025-11-21"
+    sections:
+      - name: "Added"
+        items:
+          - text: "Implement support for taskprocessing trigger event"
+            issue_number: 78
+            authors:
+              - "marcelklehr"
+          - text: "load the model once and keep it loaded"
+            issue_number: 82
+            authors:
+              - "kyteinsky"
+      - name: "Fixed"
+        items:
+          - text: "use cpu device when rocm is the compute device"
+            issue_number: 80
+            authors:
+              - "kyteinsky"
+      - name: "Changed"
+        items:
+          - text: "use \"detect_language\" instead of \"auto\" for lang detection enum value"
+            issue_number: 75
+            authors:
+              - "kyteinsky"
+          - text: "update app description in info.xml and readme"
+            issue_number: 81
+            authors:
+              - "kyteinsky"
+
+  - version: "2.2.0"
+    release_date: "2025-10-06"
+    sections:
+      - name: "Added"
+        items:
+          - text: "use the config.json from the persistent volume if persent"
+            issue_number: 70
+            authors:
+              - "kyteinsky"
+      - name: "Fixed"
+        items:
+          - text: "correct task id from the task object for error reporting"
+            issue_number: 69
+            authors:
+              - "kyteinsky"
+      - name: "Changed"
+        items:
+          - text: "set max decoding length to 10k by default"
+            issue_number: 69
+            authors:
+              - "kyteinsky"
+          - text: "bump max NC version to 33"
+            issue_number: null
+            authors: []
+
+  - version: "2.1.0"
+    release_date: "2025-08-05"
+    sections:
+      - name: "Added"
+        items:
+          - text: "Add reuse compliance"
+            issue_number: 23
+            authors:
+              - "AndyScherzinger"
+          - text: "HaRP support (Nextcloud 32+)"
+            issue_number: 35
+            authors:
+              - "oleksandr-nc"
+      - name: "Fixed"
+        items:
+          - text: "handle next_task network exceptions"
+            issue_number: null
+            authors:
+              - "kyteinsky"
+          - text: "fix model switch to work without disable and re-enable"
+            issue_number: 32
+            authors:
+              - "kyteinsky"
+          - text: "report errors to app_api on enable"
+            issue_number: 60
+            authors:
+              - "kyteinsky"
+      - name: "Changed"
+        items:
+          - text: "pin gh action versions"
+            issue_number: 31
+            authors:
+              - "kyteinsky"
+          - text: "make docker builds reproducible"
+            issue_number: 46
+            authors:
+              - "kyteinsky"
+          - text: "update pip deps and remove dependabot"
+            issue_number: 61
+            authors:
+              - "kyteinsky"
+          - text: "use the HEAD commit timestamp instead of 0 in docker build"
+            issue_number: 62
+            authors:
+              - "kyteinsky"
+          - text: "Improve error handling in task processing"
+            issue_number: 65
+            authors:
+              - "lukasdotcom"
+          - text: "Implement feedback for better error handling"
+            issue_number: 66
+            authors:
+              - "lukasdotcom"
+          - text: "Bump support to NC 32"
+            issue_number: null
+            authors:
+              - "kyteinsky"
+
+  - version: "2.0.3"
+    release_date: "2024-08-23"
+    sections:
+      - name: "Fixed"
+        items:
+          - text: "handle next_task network exceptions"
+            issue_number: null
+            authors:
+              - "kyteinsky"
+
+  - version: "2.0.2"
+    release_date: "2024-08-23"
+    sections:
+      - name: "Fixed"
+        items:
+          - text: "graceful shutdown of bg process and fix COMPUTE_DEVICE check"
+            issue_number: null
+            authors:
+              - "kyteinsky"
+
+  - version: "2.0.1"
+    release_date: "2024-08-20"
+    sections:
+      - name: "Fixed"
+        items:
+          - text: "update pip requirements"
+            issue_number: null
+            authors:
+              - "kyteinsky"
+
+  - version: "2.0.0"
+    release_date: "2024-08-15"
+    sections:
+      - name: "Changed"
+        items:
+          - text: "drop support for NC29"
+            issue_number: null
+            authors: []
+          - text: "moved to the new TaskProcessing API for NC30"
+            issue_number: null
+            authors:
+              - "kyteinsky"
+
+  - version: "1.1.0"
+    release_date: "2024-08-05"
+    sections:
+      - name: "Added"
+        items:
+          - text: "feat: madlad model support with ctranslate2"
+            issue_number: null
+            authors:
+              - "kyteinsky"
+          - text: "ci: add docker build publish"
+            issue_number: null
+            authors:
+              - "kyteinsky"
+
+  - version: "1.0.0"
+    release_date: "2024-02-23"
+    sections:
+      - name: "Added"
+        items:
+          - text: "the app"
+            issue_number: null
+            authors:
+              - "marcelklehr"
