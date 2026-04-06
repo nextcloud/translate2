@@ -11,6 +11,11 @@ markdown_preamble: |-
 
   The format is based on [Keep a Changelog](http://keepachangelog.com/)
   and this project adheres to [Semantic Versioning](http://semver.org/).
+release_agent:
+  ignore_commits:
+    - author: "^pre-commit-ci\\[bot\\]$"
+    - author: "^nextcloud-bot$"
+    - author: "^dependabot\\[bot\\]$"
 
 entries:
   - version: "2.3.0"
