@@ -18,7 +18,7 @@ The app currently supports 400+ languages. See the complete list here: https://h
 
 For installation steps and other details, see https://docs.nextcloud.com/server/latest/admin_manual/ai/app_translate2.html
 	]]></description>
-	<version>2.3.0</version>
+	<version>2.3.1</version>
 	<licence>MIT</licence>
 	<author mail="mklehr@gmx.net" homepage="https://github.com/marcelklehr">Marcel Klehr</author>
 	<author mail="bigcat88@icloud.com" homepage="https://github.com/bigcat88">Alexander Piskun</author>
@@ -34,7 +34,7 @@ For installation steps and other details, see https://docs.nextcloud.com/server/
 		<docker-install>
 			<registry>ghcr.io</registry>
 			<image>nextcloud/translate2</image>
-			<image-tag>2.3.0</image-tag>
+			<image-tag>2.3.1</image-tag>
 		</docker-install>
 		<scopes>
 			<value>AI_PROVIDERS</value>

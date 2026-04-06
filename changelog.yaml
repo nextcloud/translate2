@@ -17,6 +17,29 @@ release_agent:
   - author: "^nextcloud-bot$"
   - author: "^dependabot\\[bot\\]$"
 entries:
+- version: 2.3.1
+  release_date: '2026-04-06'
+  sections:
+  - name: Changed
+    items:
+    - text: structured changelog in a yaml file
+      authors:
+      - kyteinsky
+      issue_number: 86
+    - text: add ignore patterns for changelog
+      authors:
+      - kyteinsky
+      issue_number: 87
+    - text: changelog.yaml structure changes and CHANGELOG.md re-render
+      authors:
+      - kyteinsky
+      issue_number: 89
+  - name: Fixed
+    items:
+    - text: adjust inference params to limit small input repetition
+      authors:
+      - kyteinsky
+      issue_number: 85
 - version: 2.3.0
   release_date: '2025-11-21'
   sections:
