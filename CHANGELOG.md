@@ -8,18 +8,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.3.1 - 2026-04-06
+
+### Changed
+- structured changelog in a yaml file ([#86](https://github.com/nextcloud/translate2/pull/86)) @kyteinsky
+- add ignore patterns for changelog ([#87](https://github.com/nextcloud/translate2/pull/87)) @kyteinsky
+
+### Fixed
+- adjust inference params to limit small input repetition ([#85](https://github.com/nextcloud/translate2/pull/85)) @kyteinsky
+
+
 ## 2.3.0 - 2025-11-21
 
 ### Added
 - Implement support for taskprocessing trigger event ([#78](https://github.com/nextcloud/translate2/pull/78)) @marcelklehr
 - load the model once and keep it loaded ([#82](https://github.com/nextcloud/translate2/pull/82)) @kyteinsky
 
-### Fixed
-- use cpu device when rocm is the compute device ([#80](https://github.com/nextcloud/translate2/pull/80)) @kyteinsky
-
 ### Changed
 - use "detect_language" instead of "auto" for lang detection enum value ([#75](https://github.com/nextcloud/translate2/pull/75)) @kyteinsky
 - update app description in info.xml and readme ([#81](https://github.com/nextcloud/translate2/pull/81)) @kyteinsky
+
+### Fixed
+- use cpu device when rocm is the compute device ([#80](https://github.com/nextcloud/translate2/pull/80)) @kyteinsky
 
 
 ## 2.2.0 - 2025-10-06
@@ -27,12 +37,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - use the config.json from the persistent volume if persent ([#70](https://github.com/nextcloud/translate2/pull/70)) @kyteinsky
 
-### Fixed
-- correct task id from the task object for error reporting ([#69](https://github.com/nextcloud/translate2/pull/69)) @kyteinsky
-
 ### Changed
 - set max decoding length to 10k by default ([#69](https://github.com/nextcloud/translate2/pull/69)) @kyteinsky
 - bump max NC version to 33
+
+### Fixed
+- correct task id from the task object for error reporting ([#69](https://github.com/nextcloud/translate2/pull/69)) @kyteinsky
 
 
 ## 2.1.0 - 2025-08-05
@@ -40,11 +50,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Add reuse compliance ([#23](https://github.com/nextcloud/translate2/pull/23)) @AndyScherzinger
 - HaRP support (Nextcloud 32+) ([#35](https://github.com/nextcloud/translate2/pull/35)) @oleksandr-nc
-
-### Fixed
-- handle next_task network exceptions @kyteinsky
-- fix model switch to work without disable and re-enable ([#32](https://github.com/nextcloud/translate2/pull/32)) @kyteinsky
-- report errors to app_api on enable ([#60](https://github.com/nextcloud/translate2/pull/60)) @kyteinsky
 
 ### Changed
 - pin gh action versions ([#31](https://github.com/nextcloud/translate2/pull/31)) @kyteinsky
@@ -54,6 +59,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Improve error handling in task processing ([#65](https://github.com/nextcloud/translate2/pull/65)) @lukasdotcom
 - Implement feedback for better error handling ([#66](https://github.com/nextcloud/translate2/pull/66)) @lukasdotcom
 - Bump support to NC 32 @kyteinsky
+
+### Fixed
+- handle next_task network exceptions @kyteinsky
+- fix model switch to work without disable and re-enable ([#32](https://github.com/nextcloud/translate2/pull/32)) @kyteinsky
+- report errors to app_api on enable ([#60](https://github.com/nextcloud/translate2/pull/60)) @kyteinsky
 
 
 ## 2.0.3 - 2024-08-23
