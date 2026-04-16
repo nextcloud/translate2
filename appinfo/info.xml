@@ -28,7 +28,7 @@ For installation steps and other details, see https://docs.nextcloud.com/server/
 	<bugs>https://github.com/nextcloud/translate2/issues</bugs>
 	<repository type="git">https://github.com/nextcloud/translate2</repository>
 	<dependencies>
-		<nextcloud min-version="30" max-version="33" />
+		<nextcloud min-version="30" max-version="34" />
 	</dependencies>
 	<external-app>
 		<docker-install>
