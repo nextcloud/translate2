@@ -17,6 +17,14 @@ release_agent:
   - author: "^nextcloud-bot$"
   - author: "^dependabot\\[bot\\]$"
 entries:
+- version: 2.3.2
+  release_date: '2026-04-16'
+  sections:
+  - name: Changed
+    items:
+    - text: bump max NC version to 34
+      authors:
+      - kyteinsky
 - version: 2.3.1
   release_date: '2026-04-06'
   sections:
