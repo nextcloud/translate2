@@ -10,7 +10,7 @@
     "idle_polling_interval_with_trigger": 300,
     "tokenizer_file": "spiece.model",
     "loader": {
-        "model_name": "Nextcloud-AI/madlad400-3b-mt-ct2-int8_float32",
+        "model_name": "Nextcloud-AI/madlad400-7b-mt-bt-ct2-int8_float32",
         "inter_threads": 4,
         "intra_threads": 0
     },
