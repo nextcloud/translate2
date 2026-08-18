@@ -8,6 +8,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.3.3 - 2026-08-19
+
+### Changed
+- add NC 35 support ([#94](https://github.com/nextcloud/translate2/pull/94)) @kyteinsky
+
+
 ## 2.3.2 - 2026-04-16
 
 ### Changed
