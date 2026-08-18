@@ -17,6 +17,15 @@ release_agent:
   - author: "^nextcloud-bot$"
   - author: "^dependabot\\[bot\\]$"
 entries:
+- version: 2.3.3
+  release_date: '2026-08-19'
+  sections:
+  - name: Changed
+    items:
+    - text: add NC 35 support
+      authors:
+      - kyteinsky
+      issue_number: 94
 - version: 2.3.2
   release_date: '2026-04-16'
   sections:
